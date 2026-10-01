@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: iphone-kommandozentrale
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
