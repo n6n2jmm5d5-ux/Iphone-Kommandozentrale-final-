@@ -1,5 +1,5 @@
-const CACHE='kommandozentrale-v2';
-const FILES=['./','./index.html','./styles.css','./app.js','./agent-layer.js','./manifest.webmanifest'];
+const CACHE='kommandozentrale-v3';
+const FILES=['./','./index.html','./styles.css','./registry.js','./app.js','./agent-layer.js','./manifest.webmanifest'];
 const ASSETS=new Set(FILES.map(file=>new URL(file,self.location.href).href));
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
