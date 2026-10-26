@@ -25,7 +25,7 @@ try{
   const args=['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','color=c=0x101014:s=1080x1920:r=25:d=15'];
   if(logo)args.push('-loop','1','-i',logo);
   const filter=logo?`[0:v]${vf}[bg];[1:v]scale=220:-1[mark];[bg][mark]overlay=(W-w)/2:110,format=yuv420p[out]`:`[0:v]${vf},format=yuv420p[out]`;
-  args.push('-filter_complex',filter,'-map','[out]','-an','-c:v','libx264','-preset','veryfast','-crf','23','-t','15','-movflags','+faststart',target);
+  args.push('-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=44100','-filter_complex',filter,'-map','[out]','-map',logo?'2:a:0':'1:a:0','-c:v','libx264','-profile:v','main','-level:v','4.2','-pix_fmt','yuv420p','-preset','veryfast','-crf','23','-r','25','-c:a','aac','-b:a','96k','-ar','44100','-t','15','-shortest','-movflags','+faststart',target);
   const run=spawnSync('ffmpeg',args,{encoding:'utf8',maxBuffer:1024*1024*2});
   if(run.error||run.status!==0)throw Error(run.stderr||String(run.error));
   console.log(target);
