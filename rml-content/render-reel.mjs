@@ -16,7 +16,8 @@ if(logo&&!fs.existsSync(logo))throw Error('Original logo file not found');
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'rml-reel-'));
 try{
   // drawtext receives text via UTF-8 file, not as command-line filter syntax.
-  const titlePath=path.join(tmp,'hook.txt');fs.writeFileSync(titlePath,title);
+  const wrap=(s,max=27)=>{const words=s.split(/\\s+/),lines=[];let line='';for(const word of words){if((line+' '+word).trim().length>max&&line){lines.push(line);line=word}else line=(line+' '+word).trim()}if(line)lines.push(line);return lines.join('\\n')};
+  const titlePath=path.join(tmp,'hook.txt');fs.writeFileSync(titlePath,wrap(title));
   const footerPath=path.join(tmp,'footer.txt');fs.writeFileSync(footerPath,'RESTAURANTS MIT LEIDENSCHAFT');
   const font='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
   const text=(file,size,y,color)=>`drawtext=fontfile=${font}:textfile=${file}:fontsize=${size}:fontcolor=${color}:x=(w-text_w)/2:y=${y}:fix_bounds=1`;
