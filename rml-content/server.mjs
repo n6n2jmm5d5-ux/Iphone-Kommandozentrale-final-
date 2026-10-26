@@ -56,4 +56,4 @@ const server=http.createServer(async(req,res)=>{
   }
   send(res,404,'Not found');
 });
-server.listen(port,'127.0.0.1',()=>console.log('RML editor: http://127.0.0.1:'+port));
+server.listen(port,process.env.RML_BIND||'127.0.0.1',()=>console.log('RML editor: http://127.0.0.1:'+port));
