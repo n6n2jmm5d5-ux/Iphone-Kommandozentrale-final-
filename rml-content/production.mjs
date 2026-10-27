@@ -19,6 +19,8 @@ try{
  await run(process.execPath,[path.join(root,'auto-footage.mjs'),topic,'--out',job,'--count','5']);
  const manifest=JSON.parse(await fs.readFile(path.join(job,'sources.json'),'utf8'));
  if(manifest.selected.length!==5)throw Error('Nicht genug Clips');
+ state.status='qualitaetskontrolle';await save();
+ await run(process.execPath,[path.join(root,'quality-gate.mjs'),...manifest.selected.map(x=>path.join(job,x.file))]);
  state.status='schnitt';await save();
  const inputs=[],filters=[],lengths=[];
  for(let i=0;i<5;i++){
