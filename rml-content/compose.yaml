@@ -1,0 +1,15 @@
+services:
+  rml:
+    build:
+      context: ..
+      dockerfile: rml-content/Dockerfile
+    ports:
+      - "127.0.0.1:4177:4177"
+    environment:
+      RML_DATA_DIR: /data
+      RML_PORT: 4177
+    volumes:
+      - rml_jobs:/data
+    restart: unless-stopped
+volumes:
+  rml_jobs:

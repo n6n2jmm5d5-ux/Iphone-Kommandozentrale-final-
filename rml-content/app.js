@@ -1,0 +1,46 @@
+'use strict';
+const $=id=>document.getElementById(id),storageKey='rml-editorial-v1';
+let data;try{data=JSON.parse(localStorage.getItem(storageKey))||{ideas:[],items:[]}}catch{data={ideas:[],items:[]}}
+const save=()=>{localStorage.setItem(storageKey,JSON.stringify(data));render()};
+const topics=[['Küchenhandwerk','Warum akzeptieren wir Fertigprodukte zum Restaurantpreis?'],['Preis und Leistung','Ist ein günstiges Schnitzel wirklich ein gutes Angebot?'],['Gast und Anspruch','Haben wir verlernt, gutes Essen zu erkennen?'],['Service','Woran erkennt man aufrichtige Gastfreundschaft?'],['Esskultur','Muss ein Restaurant heute vor allem fotogen sein?'],['Kritik','Ist ein einziger Restaurantbesuch genug für eine faire Bewertung?']];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+function addIdeas(){const seen=new Set(data.ideas.map(x=>x.title));for(const [category,title] of topics)if(!seen.has(title))data.ideas.push({id:crypto.randomUUID(),category,title});save()}
+function makeDraft(title){const clean=title.trim();if(!clean)return;const body='Gutes Essen verdient mehr als einen schnellen Sterne-Klick. '+clean+' Entscheidend sind handwerkliche Qualität, nachvollziehbare Preise und das tatsächliche Erlebnis am Tisch. Wo erkennt ihr Können – und wo beginnt für euch bloßes Mittelmaß?';data.items.unshift({id:crypto.randomUUID(),title:clean,hook:clean,body,caption:body+'\n\n#RestaurantsMitLeidenschaft #Küchenhandwerk #Restaurantkritik',status:'Entwurf',created:new Date().toISOString()});save()}
+function download(name,content,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function exportItem(id){const x=data.items.find(v=>v.id===id);if(x)download('rml-'+x.id+'.json',JSON.stringify(x,null,2),'application/json')}
+function setStatus(id,status){const x=data.items.find(v=>v.id===id);if(x){x.status=status;save()}}
+async function renderVideo(id){const post=data.items.find(x=>x.id===id);if(!post||post.status!=='Freigegeben')return alert('Bitte erst freigeben.');const button=document.querySelector('[data-video="'+id+'"]');if(button){button.disabled=true;button.textContent='Video wird erzeugt …'}try{const res=await fetch('/api/render',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(post)});if(!res.ok)throw Error(await res.text());const blob=await res.blob();const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='rml-reel.mp4';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)}catch(err){alert('MP4-Export benötigt den lokalen RML-Server mit FFmpeg: '+err.message)}finally{if(button){button.disabled=false;button.textContent='15-Sekunden-MP4'}}}
+function render(){$('ideas').innerHTML=data.ideas.map(x=>'<div class="item"><strong>'+esc(x.title)+'</strong><p class="muted">'+esc(x.category)+'</p><button data-idea="'+x.id+'">Entwurf anlegen</button></div>').join('')||'<p class="muted">Noch keine Themen. Starte mit Themen vorschlagen.</p>';$('items').innerHTML=data.items.map(x=>'<article class="item"><h3>'+esc(x.title)+'</h3><p class="muted">Status: '+esc(x.status)+'</p><strong>Reel-Einstieg</strong><p>'+esc(x.hook)+'</p><strong>Beitrag</strong><p>'+esc(x.body)+'</p><div class="actions"><button data-approve="'+x.id+'">Freigeben</button><button class="secondary" data-export="'+x.id+'">Exportieren</button><button class="secondary" data-video="'+x.id+'">15-Sekunden-MP4</button></div></article>').join('')||'<p class="muted">Noch keine Entwürfe.</p>'}
+$('suggest').onclick=addIdeas;$('create').onclick=()=>{makeDraft($('topic').value);$('topic').value=''};document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.idea){const x=data.ideas.find(v=>v.id===b.dataset.idea);if(x)makeDraft(x.title)}if(b.dataset.approve)setStatus(b.dataset.approve,'Freigegeben');if(b.dataset.export)exportItem(b.dataset.export);if(b.dataset.video)renderVideo(b.dataset.video)});render();
+let filmTimer=null,activeFilmId=localStorage.getItem('rml-active-film')||null;
+async function checkFilm(){
+ if(!activeFilmId)return;
+ try{
+  const r=await fetch('/api/film/'+encodeURIComponent(activeFilmId));if(!r.ok)throw Error(await r.text());
+  const j=await r.json();
+  if(j.status==='zur_pruefung'){
+   clearInterval(filmTimer);filmTimer=null;
+   $('film-status').textContent='Filmschnitt fertig. Bitte Inhalt und Quellen vor Veröffentlichung prüfen.';
+   $('film-result').innerHTML='<div class="actions"><a href="/api/film/'+encodeURIComponent(activeFilmId)+'/video" download="rml-film-entwurf.mp4">Film herunterladen</a><a href="/api/film/'+encodeURIComponent(activeFilmId)+'/sources" target="_blank" rel="noopener">Quellen und Lizenzen prüfen</a></div>';
+   $('film-start').disabled=false;
+  }else if(j.status==='fehler'){
+   clearInterval(filmTimer);filmTimer=null;
+   $('film-status').textContent='Filmproduktion fehlgeschlagen: '+(j.error||'Unbekannter Fehler');
+   $('film-start').disabled=false;
+  }else{$('film-status').textContent='Automatische Suche und Schnitt laufen …';}
+ }catch(e){clearInterval(filmTimer);filmTimer=null;$('film-status').textContent='Verbindung zum lokalen Produktionsserver fehlgeschlagen: '+e.message;$('film-start').disabled=false}
+}
+$('film-start').onclick=async()=>{
+ const topic=$('topic').value.trim();
+ if(topic.length<12)return alert('Bitte zuerst ein konkretes Thema eingeben.');
+ $('film-start').disabled=true;$('film-result').innerHTML='';$('film-status').textContent='Filmproduktion wird gestartet …';
+ try{
+  const r=await fetch('/api/film',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({topic})});
+  const j=await r.json();if(!r.ok)throw Error(j.error||'Start fehlgeschlagen');
+  activeFilmId=j.id;localStorage.setItem('rml-active-film',j.id);await checkFilm();
+  if(filmTimer)clearInterval(filmTimer);
+  if($('film-start').disabled)filmTimer=setInterval(checkFilm,4000);
+ }catch(e){$('film-start').disabled=false;$('film-status').textContent='Start fehlgeschlagen: '+e.message}
+};
+
+if(activeFilmId){checkFilm().then(()=>{if($('film-start').disabled&&!filmTimer)filmTimer=setInterval(checkFilm,4000)});}

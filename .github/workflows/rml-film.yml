@@ -1,0 +1,68 @@
+name: RML Filmproduktion (Test)
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Redaktionelles Filmthema (keine vertraulichen Angaben)'
+        required: true
+        default: 'Wer im Restaurant frisch kocht, ist noch lange kein guter Koch.'
+        type: string
+      mode:
+        description: 'Test ohne externe Downloads oder echte Produktion'
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - production
+  pull_request:
+    paths:
+      - 'rml-content/**'
+      - '.github/workflows/rml-film.yml'
+permissions:
+  contents: read
+jobs:
+  film:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: |
+          timeout 180 sudo apt-get install -y ffmpeg
+      - name: Verify tools
+        run: |
+          node --version
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+          node --check rml-content/auto-footage.mjs
+          node --check rml-content/production.mjs
+          node --check rml-content/server.mjs
+          node --check rml-content/app.js
+          node --check rml-content/job-store.mjs
+          node --check rml-content/quality-gate.mjs
+      - name: Synthetic video smoke test
+        if: github.event_name == 'pull_request' || inputs.mode == 'smoke'
+        run: node rml-content/smoke-test.mjs
+      - name: Production (requires real source downloads)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'production'
+        env:
+          RML_TOPIC: ${{ inputs.topic }}
+          RML_OUTPUT: ${{ runner.temp }}/rml-productions
+        run: node rml-content/production.mjs "$RML_TOPIC"
+      - name: Save draft and source documentation
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rml-editorial-draft
+          path: ${{ runner.temp }}/rml-productions/job-*/entwurf.mp4
+          retention-days: 1
+          if-no-files-found: error
+      - name: Save license documentation
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rml-sources
+          path: ${{ runner.temp }}/rml-productions/job-*/sources.json
+          retention-days: 1
+          if-no-files-found: error
