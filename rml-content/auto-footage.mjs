@@ -15,7 +15,7 @@ const topic=process.argv[2]||'professional cooking kitchen';
 const arg=k=>{const i=process.argv.indexOf(k);return i<0?null:process.argv[i+1]};
 const out=path.resolve(arg('--out')||'./rml-footage');
 const count=Math.max(1,Math.min(8,Number(arg('--count')||5)));
-const topicTerms=topic.toLowerCase().normalize('NFKD').replace(/[^a-z0-9äöüß ]/g,' ').split(/\\s+/).filter(x=>x.length>4).slice(0,6);
+const topicTerms=topic.toLowerCase().normalize('NFKD').replace(/[^a-z0-9äöüß ]/g,' ').split(/\s+/).filter(x=>x.length>4).slice(0,6);
 const queries=[...new Set([...topicTerms.map(t=>t+' cooking chef'), 'professional chef cooking kitchen','cooking in pan','chopping vegetables cooking','food plating chef','restaurant kitchen cooking'])];
 const headers={'User-Agent':'RML-EditorialVideo/0.1 (independent editorial research; Wikimedia Commons API)','Accept':'application/json'};
 const get=async params=>{const u=new URL(endpoint);for(const [k,v] of Object.entries(params))u.searchParams.set(k,String(v));const r=await fetch(u,{headers,signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error('Commons API '+r.status);return r.json()};
